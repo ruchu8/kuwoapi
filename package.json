@@ -1,9 +1,13 @@
 {
-  "name": "vercel-mp3-player",
+  "name": "vercel-music-player",
   "version": "1.0.0",
+  "description": "Music player for Vercel",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
     "express": "^4.18.2",
-    "node-fetch": "^2.6.7"
+    "node-fetch": "^2.6.1"
   }
 }
-    
