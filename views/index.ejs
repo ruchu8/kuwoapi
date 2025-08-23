@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音乐播放器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <!-- 配置Tailwind自定义颜色和字体 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#10b981',
+                        dark: '#1e293b',
+                        light: '#f8fafc'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .player-shadow {
+                box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.1);
+            }
+            .progress-thumb {
+                @apply appearance-none w-4 h-4 rounded-full bg-primary cursor-pointer shadow-md;
+            }
+            .progress-thumb::-webkit-slider-thumb {
+                @apply appearance-none w-4 h-4 rounded-full bg-primary cursor-pointer shadow-md;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen font-sans text-dark">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <header class="text-center mb-12">
+            <h1 class="text-[clamp(2rem,5vw,3rem)] font-bold text-primary mb-2">音乐播放器</h1>
+            <p class="text-gray-600 text-lg">输入音乐ID，享受高品质音乐</p>
+        </header>
+        
+        <!-- 音乐ID输入表单 -->
+        <div class="bg-white rounded-xl p-6 mb-8 player-shadow transition-all duration-300 hover:shadow-lg">
+            <form id="musicForm" class="flex flex-col md:flex-row gap-4">
+                <div class="flex-1">
+                    <label for="rid" class="block text-sm font-medium text-gray-700 mb-1">音乐ID</label>
+                    <input 
+                        type="text" 
+                        id="rid" 
+                        name="rid" 
+                        value="<%= rid %>" 
+                        placeholder="请输入音乐ID" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        required
+                    >
+                </div>
+                
+                <div class="w-full md:w-48">
+                    <label for="yz" class="block text-sm font-medium text-gray-700 mb-1">音质选择</label>
+                    <select 
+                        id="yz" 
+                        name="yz" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    >
+                        <option value="1" <%= yz === '1' ? 'selected' : '' %>>流畅 (64k)</option>
+                        <option value="2" <%= yz === '2' ? 'selected' : '' %>>标准 (128k)</option>
+                        <option value="3" <%= yz === '3' ? 'selected' : '' %>>高清 (160k)</option>
+                        <option value="4" <%= yz === '4' ? 'selected' : '' %>>无损 (320k)</option>
+                        <option value="5" <%= yz === '5' ? 'selected' : '' %>>母带 (FLAC)</option>
+                    </select>
+                </div>
+                
+                <div class="flex items-end">
+                    <button 
+                        type="submit" 
+                        class="w-full md:w-auto px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 active:bg-primary/80 transition-all flex items-center justify-center gap-2"
+                    >
+                        <i class="fa fa-search"></i>
+                        <span>获取音乐</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- 音频播放器 -->
+        <div id="playerContainer" class="bg-white rounded-xl overflow-hidden player-shadow transition-all duration-500 transform hover:scale-[1.01]">
+            <div id="loadingIndicator" class="hidden py-20 text-center">
+                <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+                <p class="text-gray-600">正在加载音乐...</p>
+            </div>
+            
+            <div id="errorMessage" class="hidden py-20 text-center">
+                <i class="fa fa-exclamation-circle text-red-500 text-4xl mb-4"></i>
+                <p class="text-red-500" id="errorText">加载音乐时出错</p>
+            </div>
+            
+            <div id="player" class="hidden">
+                <!-- 音乐信息 -->
+                <div class="bg-gradient-to-r from-primary/90 to-primary p-6 text-white">
+                    <h2 id="musicTitle" class="text-2xl font-bold mb-1">音乐标题</h2>
+                    <p id="musicQuality" class="opacity-90">音质: 高清 (160k MP3)</p>
+                </div>
+                
+                <!-- 音频元素 -->
+                <audio 
+                    id="audioPlayer" 
+                    controls 
+                    class="w-full"
+                    preload="metadata"
+                >
+                    您的浏览器不支持音频播放
+                </audio>
+                
+                <!-- 自定义播放器控制 (增强原生控件) -->
+                <div class="p-6">
+                    <div class="mb-6">
+                        <div class="flex justify-between text-sm text-gray-600 mb-1">
+                            <span id="currentTime">00:00</span>
+                            <span id="totalTime">00:00</span>
+                        </div>
+                        <input 
+                            type="range" 
+                            id="progressBar" 
+                            min="0" 
+                            max="100" 
+                            value="0" 
+                            class="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer"
+                        >
+                    </div>
+                    
+                    <div class="flex justify-center items-center gap-8">
+                        <button id="volumeBtn" class="text-gray-700 hover:text-primary transition-colors">
+                            <i class="fa fa-volume-up text-2xl"></i>
+                        </button>
+                        <button id="backwardBtn" class="text-gray-700 hover:text-primary transition-colors">
+                            <i class="fa fa-step-backward text-2xl"></i>
+                        </button>
+                        <button id="playPauseBtn" class="w-14 h-14 rounded-full bg-primary text-white flex items-center justify-center hover:bg-primary/90 active:bg-primary/80 transition-all">
+                            <i class="fa fa-play text-2xl"></i>
+                        </button>
+                        <button id="forwardBtn" class="text-gray-700 hover:text-primary transition-colors">
+                            <i class="fa fa-step-forward text-2xl"></i>
+                        </button>
+                        <button id="loopBtn" class="text-gray-700 hover:text-primary transition-colors">
+                            <i class="fa fa-repeat text-2xl"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer class="mt-12 text-center text-gray-500 text-sm">
+            <p>使用说明: 输入音乐ID，选择音质，点击"获取音乐"即可播放</p>
+            <p class="mt-2">示例: https://your-domain.com/?rid=228908&yz=3</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('musicForm');
+            const ridInput = document.getElementById('rid');
+            const yzSelect = document.getElementById('yz');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const errorMessage = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+            const player = document.getElementById('player');
+            const audioPlayer = document.getElementById('audioPlayer');
+            const playPauseBtn = document.getElementById('playPauseBtn');
+            const progressBar = document.getElementById('progressBar');
+            const currentTimeEl = document.getElementById('currentTime');
+            const totalTimeEl = document.getElementById('totalTime');
+            const musicTitle = document.getElementById('musicTitle');
+            const musicQuality = document.getElementById('musicQuality');
+            const volumeBtn = document.getElementById('volumeBtn');
+            const backwardBtn = document.getElementById('backwardBtn');
+            const forwardBtn = document.getElementById('forwardBtn');
+            const loopBtn = document.getElementById('loopBtn');
+            
+            // 格式化时间（秒 -> mm:ss）
+            const formatTime = (seconds) => {
+                if (isNaN(seconds)) return '00:00';
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            };
+            
+            // 播放/暂停按钮点击事件
+            playPauseBtn.addEventListener('click', () => {
+                if (audioPlayer.paused) {
+                    audioPlayer.play();
+                } else {
+                    audioPlayer.pause();
+                }
+            });
+            
+            // 音频播放状态变化事件
+            audioPlayer.addEventListener('play', () => {
+                playPauseBtn.innerHTML = '<i class="fa fa-pause text-2xl"></i>';
+            });
+            
+            audioPlayer.addEventListener('pause', () => {
+                playPauseBtn.innerHTML = '<i class="fa fa-play text-2xl"></i>';
+            });
+            
+            // 进度条更新
+            audioPlayer.addEventListener('timeupdate', () => {
+                if (isNaN(audioPlayer.duration)) return;
+                
+                const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+                progressBar.value = progress;
+                currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
+                totalTimeEl.textContent = formatTime(audioPlayer.duration);
+            });
+            
+            // 进度条拖动事件
+            progressBar.addEventListener('input', () => {
+                if (isNaN(audioPlayer.duration)) return;
+                
+                const seekTime = (progressBar.value / 100) * audioPlayer.duration;
+                audioPlayer.currentTime = seekTime;
+            });
+            
+            // 音量控制
+            let isMuted = false;
+            let lastVolume = 1;
+            
+            volumeBtn.addEventListener('click', () => {
+                isMuted = !isMuted;
+                
+                if (isMuted) {
+                    lastVolume = audioPlayer.volume;
+                    audioPlayer.volume = 0;
+                    volumeBtn.innerHTML = '<i class="fa fa-volume-off text-2xl"></i>';
+                } else {
+                    audioPlayer.volume = lastVolume;
+                    volumeBtn.innerHTML = lastVolume > 0.5 
+                        ? '<i class="fa fa-volume-up text-2xl"></i>' 
+                        : '<i class="fa fa-volume-down text-2xl"></i>';
+                }
+            });
+            
+            // 快进/快退按钮
+            backwardBtn.addEventListener('click', () => {
+                audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 10);
+            });
+            
+            forwardBtn.addEventListener('click', () => {
+                audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 10);
+            });
+            
+            // 循环播放
+            let isLooping = false;
+            
+            loopBtn.addEventListener('click', () => {
+                isLooping = !isLooping;
+                audioPlayer.loop = isLooping;
+                loopBtn.style.color = isLooping ? '#3b82f6' : '';
+            });
+            
+            // 表单提交事件
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const rid = ridInput.value.trim();
+                const yz = yzSelect.value;
+                
+                if (!rid) {
+                    alert('请输入音乐ID');
+                    return;
+                }
+                
+                // 显示加载状态
+                loadingIndicator.classList.remove('hidden');
+                errorMessage.classList.add('hidden');
+                player.classList.add('hidden');
+                
+                try {
+                    // 获取音乐URL
+                    const response = await fetch(`/api/get-music-url?rid=${encodeURIComponent(rid)}&yz=${encodeURIComponent(yz)}`);
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(data.error || '获取音乐失败');
+                    }
+                    
+                    // 更新播放器信息
+                    audioPlayer.src = data.url;
+                    
+                    // 设置音乐标题和音质信息
+                    musicTitle.textContent = `音乐 ID: ${rid}`;
+                    let qualityText = '';
+                    switch(yz) {
+                        case '1': qualityText = '流畅 (64k ACC)'; break;
+                        case '2': qualityText = '标准 (128k MP3)'; break;
+                        case '3': qualityText = '高清 (160k MP3)'; break;
+                        case '4': qualityText = '无损 (320k MP3)'; break;
+                        case '5': qualityText = '母带 (FLAC)'; break;
+                        default: qualityText = '高清 (160k MP3)';
+                    }
+                    musicQuality.textContent = `音质: ${qualityText}`;
+                    
+                    // 隐藏加载状态，显示播放器
+                    loadingIndicator.classList.add('hidden');
+                    player.classList.remove('hidden');
+                    
+                    // 尝试自动播放
+                    try {
+                        await audioPlayer.play();
+                    } catch (playError) {
+                        console.log('自动播放失败，需要用户交互:', playError);
+                    }
+                    
+                } catch (error) {
+                    console.error('错误:', error);
+                    loadingIndicator.classList.add('hidden');
+                    errorMessage.classList.remove('hidden');
+                    errorText.textContent = error.message;
+                }
+            });
+            
+            // 如果URL中有rid参数，自动加载音乐
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('rid')) {
+                form.dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+</body>
+</html>
