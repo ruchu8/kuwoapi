@@ -1,43 +1,7 @@
 {
-  "version": 2,
-  "routes": [
-    {
-      "src": "/api/kw",
-      "methods": ["GET"],
-      "dest": "/api/kw.js"
-    },
-    {
-      "src": "/api/kw\\.php",
-      "dest": "/api/kw.js"
-    }
-  ],
   "functions": {
-    "api/kw.js": {
-      "maxDuration": 30,
-      "memory": 1024
+    "api/*.php": {
+      "runtime": "vercel-php@0.7.1"
     }
-  },
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600, s-maxage=3600"
-        }
-      ]
-    }
-  ]
+  }
 }
