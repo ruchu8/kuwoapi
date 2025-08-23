@@ -11,7 +11,15 @@ app.use((req, res, next) => {
   next();
 });
 
-// DES加密相关函数 - 优化版本
+// 国内代理服务器配置（这里需要您提供可用的国内代理）
+// 可以使用如快代理、阿布云等国内代理服务
+const PROXY_CONFIG = {
+  host: process.env.PROXY_HOST || 'your-proxy-host',
+  port: process.env.PROXY_PORT || 'your-proxy-port',
+  auth: process.env.PROXY_AUTH || 'username:password' // 代理认证信息
+};
+
+// DES加密相关函数
 const SECRET_KEY = "ylzsxkwm";
 const arrayMask = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, 67108864, 134217728, 268435456, 536870912, 1073741824, 2147483648, 4294967296, 8589934592, 17179869184, 34359738368, 68719476736, 137438953472, 274877906944, 549755813888, 1099511627776, 2199023255552, 4398046511104, 8796093022208, 17592186044416, 35184372088832, 70368744177664, 140737488355328, 281474976710656, 562949953421312, 1125899906842624, 2251799813685248, 4503599627370496, 9007199254740992, 18014398509481984, 36028797018963968, 72057594037927936, 144115188075855872, 288230376151711744, 576460752303423488, 1152921504606846976, 2305843009213693952, 4611686018427387904, -9223372036854775808];
 const DES_MODE_DECRYPT = 1;
@@ -97,423 +105,215 @@ function sub_keys(l, longs, n) {
 }
 
 function encrypt(msg) {
-    try {
-        const key = SECRET_KEY;
-        let l = 0;
-        for (let i = 0; i < 8; i++) {
-            l |= key.charCodeAt(i) << (i * 8);
-        }
-
-        const j = Math.floor(msg.length / 8);
-        const arrLong1 = new Array(16).fill(0);
-        sub_keys(l, arrLong1, 0);
-
-        const arrLong2 = new Array(j).fill(0);
-        for (let m = 0; m < j; m++) {
-            for (let n = 0; n < 8; n++) {
-                const charCode = msg.charCodeAt(n + m * 8) || 0;
-                arrLong2[m] |= charCode << (n * 8);
-            }
-        }
-
-        const arrLong3 = new Array(Math.floor((1 + 8 * (j + 1)) / 8)).fill(0);
-        for (let i1 = 0; i1 < j; i1++) {
-            arrLong3[i1] = DES64(arrLong1, arrLong2[i1]);
-        }
-
-        const arrByte1 = msg.substring(j * 8);
-        let l2 = 0;
-        for (let i1 = 0; i1 < msg.length % 8; i1++) {
-            const charCode = arrByte1.charCodeAt(i1) || 0;
-            l2 |= charCode << (i1 * 8);
-        }
-        arrLong3[j] = DES64(arrLong1, l2);
-
-        let arrByte2 = '';
-        for (const l3 of arrLong3) {
-            for (let i6 = 0; i6 < 8; i6++) {
-                arrByte2 += String.fromCharCode(255 & (l3 >> (i6 * 8)));
-            }
-        }
-
-        return arrByte2;
-    } catch (error) {
-        console.error('加密过程出错:', error);
-        throw error;
+    const key = SECRET_KEY;
+    let l = 0;
+    for (let i = 0; i < 8; i++) {
+        l |= key.charCodeAt(i) << (i * 8);
     }
+
+    const j = Math.floor(msg.length / 8);
+    const arrLong1 = new Array(16).fill(0);
+    sub_keys(l, arrLong1, 0);
+
+    const arrLong2 = new Array(j).fill(0);
+    for (let m = 0; m < j; m++) {
+        for (let n = 0; n < 8; n++) {
+            arrLong2[m] |= msg.charCodeAt(n + m * 8) << (n * 8);
+        }
+    }
+
+    const arrLong3 = new Array(Math.floor((1 + 8 * (j + 1)) / 8)).fill(0);
+    for (let i1 = 0; i1 < j; i1++) {
+        arrLong3[i1] = DES64(arrLong1, arrLong2[i1]);
+    }
+
+    const arrByte1 = msg.substring(j * 8);
+    let l2 = 0;
+    for (let i1 = 0; i1 < msg.length % 8; i1++) {
+        l2 |= arrByte1.charCodeAt(i1) << (i1 * 8);
+    }
+    arrLong3[j] = DES64(arrLong1, l2);
+
+    let arrByte2 = '';
+    let i4 = 0;
+    for (const l3 of arrLong3) {
+        for (let i6 = 0; i6 < 8; i6++) {
+            arrByte2 += String.fromCharCode(255 & (l3 >> (i6 * 8)));
+            i4 += 1;
+        }
+    }
+
+    return arrByte2;
 }
 
 function base64_encrypt(msg) {
-    try {
-        const b1 = encrypt(msg);
-        return Buffer.from(b1, 'binary').toString('base64').replace(/[\r\n]/g, '');
-    } catch (error) {
-        console.error('Base64加密出错:', error);
-        throw error;
-    }
+    const b1 = encrypt(msg);
+    return Buffer.from(b1).toString('base64').replace(/[\r\n]/g, '');
 }
 
 function getMusicUrlUrl(id, format, br) {
-    try {
-        const willEnc = `user=0&android_id=0&prod=kwplayer_ar_8.5.5.0&corp=kuwo&newver=3&vipver=8.5.5.0&source=kwplayer_ar_8.5.5.0_apk_keluze.apk&p2p=1&notrace=0&type=convert_url2&br=${br}&format=${format}&sig=0&rid=${id}&priority=bitrate&loginUid=0&network=WIFI&loginSid=0&mode=download`;
-        const encrypted = base64_encrypt(willEnc);
-        // 输出调试信息，帮助诊断问题
-        console.log(`加密前: ${willEnc}`);
-        console.log(`加密后: ${encrypted}`);
-        return `http://mobi.kuwo.cn/mobi.s?f=kuwo&q=${encodeURIComponent(encrypted)}`;
-    } catch (error) {
-        console.error('生成音乐URL出错:', error);
-        throw error;
-    }
+    const willEnc = `user=0&android_id=0&prod=kwplayer_ar_8.5.5.0&corp=kuwo&newver=3&vipver=8.5.5.0&source=kwplayer_ar_8.5.5.0_apk_keluze.apk&p2p=1&notrace=0&type=convert_url2&br=${br}&format=${format}&sig=0&rid=${id}&priority=bitrate&loginUid=0&network=WIFI&loginSid=0&mode=download`;
+    return `http://mobi.kuwo.cn/mobi.s?f=kuwo&q=${base64_encrypt(willEnc)}`;
 }
 
-// 播放器HTML页面
-const playerHtml = `
+// 创建带代理的fetch函数
+async function fetchWithProxy(url, options = {}) {
+    // 如果未配置代理，直接请求
+    if (!PROXY_CONFIG.host || !PROXY_CONFIG.port) {
+        console.warn('未配置代理，可能导致访问失败');
+        return fetch(url, options);
+    }
+
+    // 构建代理URL
+    const proxyUrl = `http://${PROXY_CONFIG.auth ? `${PROXY_CONFIG.auth}@` : ''}${PROXY_CONFIG.host}:${PROXY_CONFIG.port}`;
+    
+    // 设置代理请求头
+    const proxyOptions = {
+        ...options,
+        agent: new (require('https-proxy-agent'))(proxyUrl),
+        headers: {
+            ...options.headers,
+            'X-Forwarded-For': '114.114.114.114', // 模拟国内IP
+            'X-Real-IP': '114.114.114.114'
+        },
+        timeout: 10000
+    };
+
+    return fetch(url, proxyOptions);
+}
+
+// 简单的前端页面
+const frontendHtml = `
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>音乐播放器</title>
+    <title>MP3地址获取工具</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#3b82f6',
-                        secondary: '#10b981',
-                        dark: '#1e293b',
-                        light: '#f8fafc'
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
-                    },
-                }
-            }
-        }
-    </script>
-    <style type="text/tailwindcss">
-        @layer utilities {
-            .content-auto {
-                content-visibility: auto;
-            }
-            .player-shadow {
-                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-            }
-        }
-    </style>
 </head>
-<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen flex flex-col items-center justify-center p-4 font-sans">
-    <div class="w-full max-w-md bg-white rounded-2xl player-shadow overflow-hidden">
-        <div class="p-6">
-            <h1 class="text-[clamp(1.5rem,3vw,2rem)] font-bold text-center text-dark mb-6">音乐播放器</h1>
-            
-            <div class="mb-6">
-                <label for="musicId" class="block text-sm font-medium text-gray-700 mb-2">音乐ID</label>
-                <input type="text" id="musicId" placeholder="输入音乐ID" 
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                       value="\${musicId || ''}">
-                
-                <label for="quality" class="block text-sm font-medium text-gray-700 mt-4 mb-2">音质选择</label>
-                <select id="quality" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all">
-                    <option value="1">流畅 (64k acc)</option>
-                    <option value="2">标准 (128k mp3)</option>
-                    <option value="3" selected>高清 (160k mp3)</option>
-                    <option value="4">无损 (320k mp3)</option>
-                    <option value="5">母带 (2000k flac)</option>
-                </select>
-                
-                <button id="loadMusic" class="w-full mt-4 bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center">
-                    <i class="fa fa-search mr-2"></i> 加载音乐
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white rounded-xl shadow-lg p-6">
+        <h1 class="text-2xl font-bold text-center mb-6 text-gray-800">MP3地址获取</h1>
+        
+        <div class="mb-4">
+            <label for="rid" class="block text-sm font-medium text-gray-700 mb-1">音乐ID (rid)</label>
+            <input type="text" id="rid" placeholder="请输入音乐ID" 
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+        </div>
+        
+        <div class="mb-6">
+            <label for="quality" class="block text-sm font-medium text-gray-700 mb-1">音质选择</label>
+            <select id="quality" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                <option value="3" selected>标准MP3 (160k)</option>
+                <option value="4">高清MP3 (320k)</option>
+                <option value="5">无损FLAC (2000k)</option>
+                <option value="2">普通MP3 (128k)</option>
+                <option value="1">流畅ACC (64k)</option>
+            </select>
+        </div>
+        
+        <button id="fetchBtn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center">
+            <i class="fa fa-search mr-2"></i> 获取MP3地址
+        </button>
+        
+        <div id="loading" class="hidden mt-4 text-center">
+            <div class="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
+            <p class="mt-2 text-gray-600 text-sm">获取中...</p>
+        </div>
+        
+        <div id="result" class="mt-4 hidden">
+            <label class="block text-sm font-medium text-gray-700 mb-1">MP3地址:</label>
+            <div class="flex">
+                <input type="text" id="mp3Url" readonly 
+                       class="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg bg-gray-50">
+                <button id="copyBtn" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-r-lg transition-all">
+                    <i class="fa fa-copy"></i>
                 </button>
             </div>
-            
-            <div id="loading" class="hidden text-center py-8">
-                <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-                <p class="mt-2 text-gray-600">加载中...</p>
-            </div>
-            
-            <div id="error" class="hidden text-center py-8 text-red-500">
-                <i class="fa fa-exclamation-triangle text-2xl mb-2"></i>
-                <p id="errorMessage">加载失败，请重试</p>
-                <p id="debugInfo" class="text-xs mt-2 text-gray-400"></p>
-            </div>
-            
-            <div id="playerContainer" class="hidden">
-                <div class="bg-gray-100 rounded-xl p-4 mb-4">
-                    <div class="relative pt-1">
-                        <input type="range" id="progressBar" min="0" max="100" value="0" 
-                               class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-primary">
-                    </div>
-                    
-                    <div class="flex justify-between text-sm text-gray-500 mt-1">
-                        <span id="currentTime">00:00</span>
-                        <span id="duration">00:00</span>
-                    </div>
-                </div>
-                
-                <div class="flex items-center justify-between mb-2">
-                    <button id="skipBack" class="text-gray-600 hover:text-primary transition-colors">
-                        <i class="fa fa-step-backward text-xl"></i>
-                    </button>
-                    
-                    <button id="playPause" class="bg-primary hover:bg-primary/90 text-white rounded-full w-14 h-14 flex items-center justify-center transition-all">
-                        <i class="fa fa-play text-xl"></i>
-                    </button>
-                    
-                    <button id="skipForward" class="text-gray-600 hover:text-primary transition-colors">
-                        <i class="fa fa-step-forward text-xl"></i>
-                    </button>
-                </div>
-                
-                <div class="mt-4">
-                    <div class="flex items-center justify-between mb-1">
-                        <i class="fa fa-volume-up text-gray-600"></i>
-                        <span class="text-sm text-gray-500" id="volumeValue">100%</span>
-                    </div>
-                    <input type="range" id="volumeSlider" min="0" max="100" value="100" 
-                           class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-primary">
-                </div>
-                
-                <div class="flex justify-center mt-4 space-x-4">
-                    <button id="loop" class="text-gray-600 hover:text-primary transition-colors">
-                        <i class="fa fa-repeat"></i>
-                    </button>
-                    <button id="mute" class="text-gray-600 hover:text-primary transition-colors">
-                        <i class="fa fa-volume-off"></i>
-                    </button>
-                </div>
+            <div class="mt-4">
+                <audio id="audioPlayer" controls class="w-full">
+                    您的浏览器不支持音频播放
+                </audio>
             </div>
         </div>
+        
+        <div id="error" class="mt-4 hidden p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+            <i class="fa fa-exclamation-circle mr-1"></i>
+            <span id="errorMsg"></span>
+        </div>
     </div>
-    
-    <audio id="audioPlayer" hidden></audio>
-    
+
     <script>
-        // 从URL获取参数
-        const urlParams = new URLSearchParams(window.location.search);
-        const musicId = urlParams.get('rid');
-        const quality = urlParams.get('yz') || '3';
-        
-        // DOM元素
-        const audioPlayer = document.getElementById('audioPlayer');
-        const progressBar = document.getElementById('progressBar');
-        const currentTimeEl = document.getElementById('currentTime');
-        const durationEl = document.getElementById('duration');
-        const playPauseBtn = document.getElementById('playPause');
-        const volumeSlider = document.getElementById('volumeSlider');
-        const volumeValue = document.getElementById('volumeValue');
-        const muteBtn = document.getElementById('mute');
-        const loopBtn = document.getElementById('loop');
-        const skipBackBtn = document.getElementById('skipBack');
-        const skipForwardBtn = document.getElementById('skipForward');
-        const loadMusicBtn = document.getElementById('loadMusic');
-        const musicIdInput = document.getElementById('musicId');
-        const qualitySelect = document.getElementById('quality');
-        const playerContainer = document.getElementById('playerContainer');
-        const loadingIndicator = document.getElementById('loading');
-        const errorIndicator = document.getElementById('error');
-        const errorMessage = document.getElementById('errorMessage');
-        const debugInfo = document.getElementById('debugInfo');
-        
-        // 设置初始值
-        if (musicId) musicIdInput.value = musicId;
-        if (quality) qualitySelect.value = quality;
-        
-        // 格式化时间（秒 -> mm:ss）
-        function formatTime(seconds) {
-            if (isNaN(seconds)) return '00:00';
-            const mins = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            return \`\${mins.toString().padStart(2, '0')}:\${secs.toString().padStart(2, '0')}\`;
-        }
-        
-        // 加载音乐
-        async function loadMusic(id, yz) {
-            if (!id) {
+        document.getElementById('fetchBtn').addEventListener('click', async () => {
+            const rid = document.getElementById('rid').value.trim();
+            const quality = document.getElementById('quality').value;
+            
+            if (!rid) {
                 showError('请输入音乐ID');
                 return;
             }
             
+            showLoading();
+            hideResult();
+            hideError();
+            
             try {
-                showLoading();
-                hidePlayer();
-                hideError();
+                const response = await fetch(\`/getMp3?rid=\${encodeURIComponent(rid)}&yz=\${quality}\`);
+                const mp3Url = await response.text();
                 
-                // 显示调试信息
-                debugInfo.textContent = \`正在加载音乐ID: \${id}, 音质: \${yz}\`;
-                
-                const response = await fetch(\`/api?rid=\${id}&yz=\${yz}\`);
-                const status = response.status;
-                const musicUrl = await response.text();
-                
-                // 显示更多调试信息
-                debugInfo.textContent = \`服务器响应: \${status}, 内容长度: \${musicUrl.length}\`;
-                
-                if (!response.ok) {
-                    throw new Error(\`获取音乐地址失败 (HTTP \${status}): \${musicUrl.substring(0, 100)}\`);
+                if (response.ok && mp3Url && !mp3Url.includes('错误')) {
+                    showResult(mp3Url);
+                } else {
+                    showError(mp3Url || '获取失败，请重试');
                 }
-                
-                if (!musicUrl || musicUrl.includes('参数错误') || musicUrl.includes('错误')) {
-                    throw new Error(\`无效的音乐ID或获取地址失败: \${musicUrl}\`);
-                }
-                
-                // 检查是否是有效的URL
-                try {
-                    new URL(musicUrl);
-                } catch (e) {
-                    throw new Error(\`获取的不是有效的URL: \${musicUrl}\`);
-                }
-                
-                // 设置音频源
-                audioPlayer.src = musicUrl;
-                await audioPlayer.load();
-                
-                // 显示播放器
-                showPlayer();
-                hideLoading();
-                
-                // 尝试自动播放
-                try {
-                    await audioPlayer.play();
-                    updatePlayPauseIcon();
-                } catch (e) {
-                    console.log('自动播放失败，需要用户交互');
-                }
-                
-            } catch (error) {
-                console.error('加载音乐错误:', error);
-                showError(error.message);
+            } catch (err) {
+                showError('网络错误，请稍后重试');
+                console.error(err);
+            } finally {
                 hideLoading();
             }
-        }
-        
-        // 事件监听
-        loadMusicBtn.addEventListener('click', () => {
-            loadMusic(musicIdInput.value, qualitySelect.value);
         });
         
-        // 播放/暂停
-        playPauseBtn.addEventListener('click', () => {
-            if (audioPlayer.paused) {
-                audioPlayer.play();
-            } else {
-                audioPlayer.pause();
-            }
-            updatePlayPauseIcon();
+        document.getElementById('copyBtn').addEventListener('click', () => {
+            const urlInput = document.getElementById('mp3Url');
+            urlInput.select();
+            document.execCommand('copy');
+            
+            const copyBtn = document.getElementById('copyBtn');
+            const originalText = copyBtn.innerHTML;
+            copyBtn.innerHTML = '<i class="fa fa-check"></i>';
+            setTimeout(() => {
+                copyBtn.innerHTML = originalText;
+            }, 2000);
         });
-        
-        // 更新播放/暂停图标
-        function updatePlayPauseIcon() {
-            const icon = playPauseBtn.querySelector('i');
-            if (audioPlayer.paused) {
-                icon.className = 'fa fa-play text-xl';
-            } else {
-                icon.className = 'fa fa-pause text-xl';
-            }
-        }
-        
-        // 进度更新
-        audioPlayer.addEventListener('timeupdate', () => {
-            const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
-            progressBar.value = progress || 0;
-            currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
-        });
-        
-        // 音频元数据加载完成
-        audioPlayer.addEventListener('loadedmetadata', () => {
-            durationEl.textContent = formatTime(audioPlayer.duration);
-        });
-        
-        // 进度条拖动
-        progressBar.addEventListener('input', () => {
-            const seekTime = (progressBar.value / 100) * audioPlayer.duration;
-            audioPlayer.currentTime = seekTime;
-        });
-        
-        // 音量控制
-        volumeSlider.addEventListener('input', () => {
-            audioPlayer.volume = volumeSlider.value / 100;
-            volumeValue.textContent = \`\${volumeSlider.value}%\`;
-            updateMuteIcon();
-        });
-        
-        // 静音切换
-        muteBtn.addEventListener('click', () => {
-            audioPlayer.muted = !audioPlayer.muted;
-            updateMuteIcon();
-        });
-        
-        // 更新静音图标
-        function updateMuteIcon() {
-            const icon = muteBtn.querySelector('i');
-            if (audioPlayer.muted || audioPlayer.volume === 0) {
-                icon.className = 'fa fa-volume-off';
-            } else if (audioPlayer.volume < 0.5) {
-                icon.className = 'fa fa-volume-down';
-            } else {
-                icon.className = 'fa fa-volume-up';
-            }
-        }
-        
-        // 循环播放
-        loopBtn.addEventListener('click', () => {
-            audioPlayer.loop = !audioPlayer.loop;
-            loopBtn.classList.toggle('text-primary', audioPlayer.loop);
-        });
-        
-        // 快退10秒
-        skipBackBtn.addEventListener('click', () => {
-            audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 10);
-        });
-        
-        // 快进10秒
-        skipForwardBtn.addEventListener('click', () => {
-            audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 10);
-        });
-        
-        // 播放结束
-        audioPlayer.addEventListener('ended', () => {
-            updatePlayPauseIcon();
-        });
-        
-        // 错误处理
-        audioPlayer.addEventListener('error', (e) => {
-            console.error('音频错误:', e);
-            showError(\`播放失败: \${e.message || '未知错误'}\`);
-        });
-        
-        // UI控制函数
-        function showPlayer() {
-            playerContainer.classList.remove('hidden');
-        }
-        
-        function hidePlayer() {
-            playerContainer.classList.add('hidden');
-        }
         
         function showLoading() {
-            loadingIndicator.classList.remove('hidden');
+            document.getElementById('loading').classList.remove('hidden');
         }
         
         function hideLoading() {
-            loadingIndicator.classList.add('hidden');
+            document.getElementById('loading').classList.add('hidden');
+        }
+        
+        function showResult(url) {
+            document.getElementById('mp3Url').value = url;
+            document.getElementById('audioPlayer').src = url;
+            document.getElementById('result').classList.remove('hidden');
+        }
+        
+        function hideResult() {
+            document.getElementById('result').classList.add('hidden');
         }
         
         function showError(message) {
-            errorMessage.textContent = message;
-            errorIndicator.classList.remove('hidden');
+            document.getElementById('errorMsg').textContent = message;
+            document.getElementById('error').classList.remove('hidden');
         }
         
         function hideError() {
-            errorIndicator.classList.remove('hidden');
-        }
-        
-        // 如果URL有参数，自动加载
-        if (musicId) {
-            loadMusic(musicId, quality);
+            document.getElementById('error').classList.add('hidden');
         }
     </script>
 </body>
@@ -522,20 +322,15 @@ const playerHtml = `
 
 // 路由
 app.get('/', (req, res) => {
-    const musicId = req.query.rid || '';
-    const html = playerHtml.replace('${musicId || \'\'}', musicId);
-    res.send(html);
+    res.send(frontendHtml);
 });
 
-app.get('/api', async (req, res) => {
+app.get('/getMp3', async (req, res) => {
     try {
         const id = req.query.rid;
         const yz = req.query.yz || '3';
         
-        console.log(`收到请求: rid=${id}, yz=${yz}`);
-        
         if (!id) {
-            console.log('缺少音乐ID参数');
             return res.status(400).send('参数错误：缺少音乐ID');
         }
         
@@ -561,76 +356,57 @@ app.get('/api', async (req, res) => {
             br = '160kmp3';
         }
         
-        console.log(`格式: ${format}, 音质: ${br}`);
-        
         // 获取音乐URL
         const musicUrl = getMusicUrlUrl(id, format, br);
-        console.log(`请求URL: ${musicUrl}`);
+        console.log('请求的音乐接口地址:', musicUrl);
         
-        // 发送请求获取实际播放地址，使用多个备选UA
-        const userAgents = [
-            'Mozilla/5.0 (Linux; Android 13; SM-G9980) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36',
-            'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1',
-            'Mozilla/5.0 (Linux; U; Android 12; zh-CN; MI 12 Build/SKQ1.211006.001) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/78.0.3904.108 Mobile Safari/537.36'
-        ];
-        
-        // 随机选择一个UA
-        const randomUA = userAgents[Math.floor(Math.random() * userAgents.length)];
-        console.log(`使用User-Agent: ${randomUA}`);
-        
-        // 发送请求
-        const response = await fetch(musicUrl, {
+        // 使用国内代理发送请求，解决海外IP限制
+        const response = await fetchWithProxy(musicUrl, {
             headers: {
-                'User-Agent': randomUA,
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 13; SM-G9980) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36',
                 'Referer': 'http://mobi.kuwo.cn/',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-                'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+                'Accept': '*/*',
                 'Connection': 'keep-alive'
-            },
-            timeout: 10000 // 10秒超时
+            }
         });
         
-        console.log(`响应状态: ${response.status}`);
-        
         if (!response.ok) {
-            const errorText = await response.text();
-            console.log(`请求失败内容: ${errorText}`);
-            throw new Error(`请求失败: ${response.status}, 内容: ${errorText.substring(0, 200)}`);
+            console.error(`接口请求失败: ${response.status} ${response.statusText}`);
+            throw new Error(`接口返回状态码: ${response.status}`);
         }
         
         const responseText = await response.text();
-        console.log(`响应内容长度: ${responseText.length}, 前200字符: ${responseText.substring(0, 200)}`);
+        console.log('接口返回内容:', responseText.substring(0, 200)); // 只打印前200字符
         
-        // 尝试多种方式提取URL
+        // 提取URL的多种尝试
         let urlMatch;
+        // 尝试多种正则模式
+        const patterns = [
+            /url=(.*?)\s/,
+            /url=(.*?)&/,
+            /url=(.*?)"/,
+            /url=(.*?)$/
+        ];
         
-        // 尝试原始正则表达式
-        urlMatch = responseText.match(/url=(.*?)\s/);
-        if (!urlMatch) {
-            // 尝试没有空格的情况
-            urlMatch = responseText.match(/url=(.*?)(&|$)/);
-        }
-        if (!urlMatch) {
-            // 尝试更宽松的匹配
-            urlMatch = responseText.match(/(https?:\/\/[^"\s]+)/);
+        for (const pattern of patterns) {
+            urlMatch = responseText.match(pattern);
+            if (urlMatch && urlMatch[1]) break;
         }
         
         if (!urlMatch || !urlMatch[1]) {
-            throw new Error('无法提取音乐URL，响应内容: ' + responseText.substring(0, 200));
+            throw new Error('无法从接口响应中提取MP3地址');
         }
         
-        const extractedUrl = urlMatch[1];
-        console.log(`提取到的URL: ${extractedUrl}`);
+        const mp3Url = urlMatch[1];
+        console.log('提取到的MP3地址:', mp3Url);
         
-        res.send(extractedUrl);
+        res.send(mp3Url);
     } catch (error) {
-        console.error('API错误:', error);
-        res.status(500).send(`服务器错误: ${error.message}`);
+        console.error('获取MP3地址错误:', error);
+        res.status(500).send(`获取失败: ${error.message}`);
     }
 });
 
-// 启动服务器
 app.listen(port, () => {
     console.log(`服务器运行在端口 ${port}`);
 });
-    
