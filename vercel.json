@@ -4,7 +4,7 @@
     {
       "src": "api/**/*.php",
       "use": "vercel-php@0.6.0",
-      "config": { "phpVersion": "7.4" } // 指定 PHP7.4 版本
+      "config": { "phpVersion": "7.4" } 
     },
     {
       "src": "public/**/*",
@@ -14,7 +14,7 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "api/index.php" // 将所有请求指向 PHP 入口文件
+      "dest": "api/index.php" 
     },
     {
       "src": "/public/(.*)",
