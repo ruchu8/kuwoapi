@@ -1,9 +1,24 @@
 {
   "version": 2,
   "builds": [
-    { "src": "index.js", "use": "@vercel/node" }
+    {
+      "src": "api/**/*.php",
+      "use": "vercel-php@0.6.0",
+      "config": { "phpVersion": "7.4" } // 指定 PHP7.4 版本
+    },
+    {
+      "src": "public/**/*",
+      "use": "@vercel/static"
+    }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "index.js" }
+    {
+      "src": "/(.*)",
+      "dest": "api/index.php" // 将所有请求指向 PHP 入口文件
+    },
+    {
+      "src": "/public/(.*)",
+      "dest": "public/$1"
+    }
   ]
 }
