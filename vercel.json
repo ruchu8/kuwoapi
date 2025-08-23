@@ -4,7 +4,7 @@
     {
       "src": "api/**/*.php",
       "use": "vercel-php@0.6.0",
-      "config": { "phpVersion": "7.4" } 
+      "config": { "phpVersion": "7.4" }
     },
     {
       "src": "public/**/*",
@@ -13,8 +13,12 @@
   ],
   "routes": [
     {
+      "src": "/info",
+      "dest": "api/info.php"
+    },
+    {
       "src": "/(.*)",
-      "dest": "api/index.php" 
+      "dest": "api/index.php"
     },
     {
       "src": "/public/(.*)",
