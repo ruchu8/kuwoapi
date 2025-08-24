@@ -187,6 +187,7 @@ function getMusicUrlUrl($id, $format,$br)
 {
     $willEnc = "user=0&android_id=0&prod=kwplayer_ar_8.5.5.0&corp=kuwo&newver=3&vipver=8.5.5.0&source=kwplayer_ar_8.5.5.0_apk_keluze.apk&p2p=1&notrace=0&type=convert_url2&br={$br}&format={$format}&sig=0&rid={$id}&priority=bitrate&loginUid=0&network=WIFI&loginSid=0&mode=download";
     $url ="http://mobi.kuwo.cn/mobi.s?f=kuwo&q=" . base64_encrypt($willEnc);
+
     return $url;
 }
 
@@ -215,7 +216,23 @@ if ($yz == '1') {
 }
 // 调用 getMusicUrlUrl 函数获取音乐 URL
 $musicUrl = getMusicUrlUrl($id,$format,$br);
+ 
+// -------------------------------------------------------------------------------
 
+function getRandomChineseIP() {
+    $ipRanges = array(
+        array('1.0.1.0', '1.0.3.255'),
+        array('1.0.8.0', '1.0.15.255'),
+
+        array('120.0.0.0', '120.255.255.255')
+    );
+
+    $ipRange = $ipRanges[array_rand($ipRanges)];
+    $ipStart = ip2long($ipRange[0]);
+    $ipEnd = ip2long($ipRange[1]);
+    $randomIP = long2ip(rand($ipStart, $ipEnd));
+    return $randomIP;
+}
 
 // -------------------------- 关键修改：添加手机UA请求头 --------------------------
 $ch = curl_init($musicUrl);
@@ -227,6 +244,29 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 // 3. （可选）添加HTTPS兼容配置（若目标接口升级为HTTPS，避免SSL证书验证错误）
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+
+// 4. 设置随机的国内IP地址
+$randomIP = getRandomChineseIP();
+$headers = array(
+    'X-Forwarded-For: ' . $randomIP,
+    'X-Remote-IP: ' . $randomIP,
+    'X-Remote-ip: ' . $randomIP,
+    'X-Client-IP: ' . $randomIP,
+    'X-Client-IP: ' . $randomIP,
+    'X-Real-IP: ' . $randomIP,
+    'Client-Ip: ' . $randomIP,
+    'Remote_Addr: ' . $randomIP,
+    'Client-Ip: ' . $randomIP,
+    'Remote_Addr: ' . $randomIP
+);
+curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+// 输出请求头
+// echo "请求头:\n";
+// foreach ($headers as $header) {
+//     echo $header . "\n";
+// }
+
 // -------------------------------------------------------------------------------
 
 $response = curl_exec($ch);
@@ -238,14 +278,16 @@ https://api.fanxing.life/api/kw.php?rid=228908    直接返回高品音質
 https://api.fanxing.life/api/kw.php?rid=228908&yz=音質選擇1-5  音質選擇從低到高（yz=1為流暢，yz=5為無損）
 */
 if(isset($_GET['rid'])) {
-  $rid = $_GET['rid'];
+    $rid = $_GET['rid'];
 
-  preg_match('/url=(.*?)\s/', $response, $matches);
-  $url = $matches[1];
+    preg_match('/url=(.*?)\s/', $response, $matches);
+    $url = $matches[1];
 
-
-  echo $url;
+    echo $url;
 } else {
-  echo "参数错误";
+    echo "参数错误";
 }
+
+
+
 ?>
