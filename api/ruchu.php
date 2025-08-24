@@ -262,10 +262,10 @@ $headers = array(
 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
 // 输出请求头
-// echo "请求头:\n";
-// foreach ($headers as $header) {
-//     echo $header . "\n";
-// }
+echo "请求头:\n";
+foreach ($headers as $header) {
+    echo $header . "\n";
+}
 
 // -------------------------------------------------------------------------------
 
